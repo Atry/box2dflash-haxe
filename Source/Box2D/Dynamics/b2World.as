@@ -1051,7 +1051,10 @@ public class b2World extends EventDispatcher
 				island.AddBody(b);
 				
 				// Make sure the body is awake.
-				b.SetAwake(true);
+				if (b.IsAwake() == false)
+				{
+					b.SetAwake(true);
+				}
 				
 				// To keep islands as small as possible, we don't
 				// propagate islands across static bodies.
