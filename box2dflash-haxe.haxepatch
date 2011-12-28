@@ -1,0 +1,2 @@
+-box2D.dynamics.contacts.B2Contact.Reset
+-static box2D.collision.B2AABB.Combine
