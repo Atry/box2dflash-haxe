@@ -30,11 +30,23 @@ import Box2D.Common.*;
 */
 public class b2Sweep
 {
+	public function Copy():b2Sweep
+	{
+		var copy:b2Sweep = new b2Sweep();
+		copy.localCenter.SetV(localCenter);
+		copy.c0.SetV(c0);
+		copy.c.SetV(c);
+		copy.a0 = a0;
+		copy.a = a;
+		copy.t0 = t0;
+		return copy;
+	}
+	
 	/**
 	* Get the interpolated transform at a specific time.
 	* @param alpha is a factor in [0,1], where 0 indicates t0.
 	*/
-	public function GetTransform(xf:b2XForm, alpha:Number):void
+	public function GetTransform(xf:b2Transform, alpha:Number):void
 	{
 		xf.position.x = (1.0 - alpha) * c0.x + alpha * c.x;
 		xf.position.y = (1.0 - alpha) * c0.y + alpha * c.y;

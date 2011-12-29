@@ -811,7 +811,7 @@ public class b2ContactSolver
 //				minSeparation = b2Math.b2Min(minSeparation, separation);
 //				
 //				// Prevent large corrections and allow slop.
-//				var C:Number = baumgarte * b2Math.b2Clamp(separation + b2Settings.b2_linearSlop, -b2Settings.b2_maxLinearCorrection, 0.0);
+//				var C:Number =  b2Math.b2Clamp(baumgarte * (separation + b2Settings.b2_linearSlop), -b2Settings.b2_maxLinearCorrection, 0.0);
 //				
 //				// Compute normal impulse
 //				var dImpulse:Number = -ccp.equalizedMass * C;
@@ -880,7 +880,8 @@ public class b2ContactSolver
 				// Track max constraint error.
 				minSeparation = minSeparation < separation?minSeparation:separation;
 				
-				var C:Number = baumgarte * b2Math.b2Clamp(separation + b2Settings.b2_linearSlop, -b2Settings.b2_maxLinearCorrection, 0.0);
+				// Prevent large corrections and allow slop.
+				var C:Number = b2Math.b2Clamp(baumgarte * (separation + b2Settings.b2_linearSlop), -b2Settings.b2_maxLinearCorrection, 0.0);
 				
 				// Compute normal impulse
 				var impulse:Number = -ccp.equalizedMass * C;
@@ -949,7 +950,7 @@ internal class b2PositionSolverManifold
 			case b2Manifold.e_circles:
 			{
 				var pointA:b2Vec2 = cc.bodyA.GetWorldPoint(cc.localPoint);
-				var pointB:b2Vec2 = cc.bodyB.GetWorldPoint(cc.localPoint);
+				var pointB:b2Vec2 = cc.bodyB.GetWorldPoint(cc.points[0].localPoint);
 				var dX:Number = pointB.x - pointA.x;
 				var dY:Number = pointB.y - pointA.y;
 				if (dX * dX + dY * dY>Number.MIN_VALUE*Number.MIN_VALUE)

@@ -337,8 +337,8 @@ public class b2PrismaticJoint extends b2Joint
 		m_localCenter1.SetV(bA.GetLocalCenter());
 		m_localCenter2.SetV(bB.GetLocalCenter());
 		
-		var xf1:b2XForm = bA.GetXForm();
-		var xf2:b2XForm = bB.GetXForm();
+		var xf1:b2Transform = bA.GetTransform();
+		var xf2:b2Transform = bB.GetTransform();
 		
 		// Compute the effective masses.
 		//b2Vec2 r1 = b2Mul(bA->m_xf.R, m_localAnchor1 - bA->GetLocalCenter());
@@ -374,8 +374,8 @@ public class b2PrismaticJoint extends b2Joint
 			m_a2 = r2X * m_axis.y - r2Y * m_axis.x;
 			
 			m_motorMass = m_invMass1 + m_invMass2 + m_invI1 * m_a1 * m_a1 + m_invI2 * m_a2 * m_a2; 
-			//b2Settings.b2Assert(m_motorMass > B2_FLT_EPSILON);
-			m_motorMass = 1.0 / m_motorMass;
+			if(m_motorMass > Number.MIN_VALUE)
+				m_motorMass = 1.0 / m_motorMass;
 		}
 		
 		// Prismatic constraint.

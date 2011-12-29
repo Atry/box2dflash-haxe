@@ -42,6 +42,8 @@ package Box2D.Collision
 			// TODO: Maybe allocate some free nodes?
 			m_freeList = null;
 			m_path = 0;
+			
+			m_insertionCount = 0;
 		}
 		/*
 		public function Dump(node:b2DynamicTreeNode=null, depth:int=0):void
@@ -74,13 +76,12 @@ package Box2D.Collision
 			var node:b2DynamicTreeNode = AllocateNode();
 			
 			// Fatten the aabb.
-			var center:b2Vec2 = aabb.GetCenter();
-			var extentsX:Number = b2Settings.b2_aabbExtension * (aabb.upperBound.x - aabb.lowerBound.x) / 2;
-			var extentsY:Number = b2Settings.b2_aabbExtension * (aabb.upperBound.y - aabb.lowerBound.y) / 2;
-			node.aabb.lowerBound.x = center.x - extentsX;
-			node.aabb.lowerBound.y = center.y - extentsY;
-			node.aabb.upperBound.x = center.x + extentsX;
-			node.aabb.upperBound.y = center.y + extentsY;
+			var extendX:Number = b2Settings.b2_aabbExtension;
+			var extendY:Number = b2Settings.b2_aabbExtension;
+			node.aabb.lowerBound.x = aabb.lowerBound.x - extendX;
+			node.aabb.lowerBound.y = aabb.lowerBound.y - extendY;
+			node.aabb.upperBound.x = aabb.upperBound.x + extendX;
+			node.aabb.upperBound.y = aabb.upperBound.y + extendY;
 			
 			node.userData = userData;
 			
@@ -99,24 +100,28 @@ package Box2D.Collision
 		}
 		
 		/**
-		 * Move a proxy. If the proxy has moved outside of its fattened AABB,
+		 * Move a proxy with a swept AABB. If the proxy has moved outside of its fattened AABB,
 		 * then the proxy is removed from the tree and re-inserted. Otherwise
 		 * the function returns immediately.
 		 */
-		public function MoveProxy(proxy:b2DynamicTreeNode, aabb:b2AABB):Boolean
+		public function MoveProxy(proxy:b2DynamicTreeNode, aabb:b2AABB, displacement:b2Vec2):Boolean
 		{
 			b2Settings.b2Assert(proxy.IsLeaf());
+			
+			if (proxy.aabb.Contains(aabb))
+			{
+				return false;
+			}
+			
 			RemoveLeaf(proxy);
 			
-			// Fatten the aabb.
-			var center:b2Vec2 = aabb.GetCenter();
-			var extentsX:Number = b2Settings.b2_aabbExtension * (aabb.upperBound.x - aabb.lowerBound.x) / 2;
-			var extentsY:Number = b2Settings.b2_aabbExtension * (aabb.upperBound.y - aabb.lowerBound.y) / 2;
-			proxy.aabb.lowerBound.x = center.x - extentsX;
-			proxy.aabb.lowerBound.y = center.y - extentsY;
-			proxy.aabb.upperBound.x = center.x + extentsX;
-			proxy.aabb.upperBound.y = center.y + extentsY;
-			
+			// Extend AABB
+			var extendX:Number = b2Settings.b2_aabbExtension + b2Settings.b2_aabbMultiplier * (displacement.x > 0?displacement.x: -displacement.x);
+			var extendY:Number = b2Settings.b2_aabbExtension + b2Settings.b2_aabbMultiplier * (displacement.y > 0?displacement.y: -displacement.y);
+			proxy.aabb.lowerBound.x = aabb.lowerBound.x - extendX;
+			proxy.aabb.lowerBound.y = aabb.lowerBound.y - extendY;
+			proxy.aabb.upperBound.x = aabb.upperBound.x + extendX;
+			proxy.aabb.upperBound.y = aabb.upperBound.y + extendY;
 			
 			InsertLeaf(proxy);
 			return true;
@@ -151,7 +156,9 @@ package Box2D.Collision
 			return proxy.aabb;
 		}
 
-		/// Get user data from a proxy. Returns null if the proxy is invalid.
+		/**
+		 * Get user data from a proxy. Returns null if the proxy is invalid.
+		 */
 		public function GetUserData(proxy:b2DynamicTreeNode):*
 		{
 			return proxy.userData;
@@ -204,7 +211,7 @@ package Box2D.Collision
 		 * @param input the ray-cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1).
 		 * @param callback a callback class that is called for each proxy that is hit by the ray.
 		 * It should be of signature:
-		 * <code>function callback(input:b2RayCastInput, userData:*):void</code>
+		 * <code>function callback(input:b2RayCastInput, proxy:*):void</code>
 		 */
 		public function RayCast(callback:Function, input:b2RayCastInput):void
 		{
@@ -267,27 +274,19 @@ package Box2D.Collision
 					subInput.p2 = input.p2;
 					subInput.maxFraction = input.maxFraction;
 					
-					var output:b2RayCastOutput = new b2RayCastOutput();
-					callback(output, subInput, node.userData);
+					maxFraction = callback(subInput, node);
 					
-					if (output.hit)
+					if (maxFraction == 0.0)
+						return;
+						
+					//Update the segment bounding box
 					{
-						// Early exit
-						if (output.fraction == 0.0)
-							return;
-							
-						maxFraction = output.fraction;
-						
-						//Update the segment bounding box
-						{
-							tX = p1.x + maxFraction * (p2.x - p1.x);
-							tY = p1.y + maxFraction * (p2.y - p1.y);
-							segmentAABB.lowerBound.x = Math.min(p1.x, tX);
-							segmentAABB.lowerBound.y = Math.min(p1.y, tY);
-							segmentAABB.upperBound.x = Math.max(p1.x, tX);
-							segmentAABB.upperBound.y = Math.max(p1.y, tY);
-						}
-						
+						tX = p1.x + maxFraction * (p2.x - p1.x);
+						tY = p1.y + maxFraction * (p2.y - p1.y);
+						segmentAABB.lowerBound.x = Math.min(p1.x, tX);
+						segmentAABB.lowerBound.y = Math.min(p1.y, tY);
+						segmentAABB.upperBound.x = Math.max(p1.x, tX);
+						segmentAABB.upperBound.y = Math.max(p1.y, tY);
 					}
 				}
 				else
@@ -325,6 +324,8 @@ package Box2D.Collision
 		
 		private function InsertLeaf(leaf:b2DynamicTreeNode):void
 		{
+			++m_insertionCount;
+			
 			if (m_root == null)
 			{
 				m_root = leaf;
@@ -463,6 +464,8 @@ package Box2D.Collision
 		
 		/** This is used for incrementally traverse the tree for rebalancing */
 		private var m_path:uint;
+		
+		private var m_insertionCount:int;
 	}
 	
 }

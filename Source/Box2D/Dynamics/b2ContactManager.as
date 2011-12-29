@@ -42,12 +42,6 @@ public class b2ContactManager
 		m_contactFilter = b2ContactFilter.b2_defaultFilter;
 		m_contactListener = b2ContactListener.b2_defaultListener;
 		m_broadPhase = new b2DynamicTreeBroadPhase();
-		//var aabb:b2AABB  = new b2AABB();
-		//aabb.lowerBound.x = -100000;
-		//aabb.lowerBound.y = -100000;
-		//aabb.upperBound.x = 100000;
-		//aabb.upperBound.y = 100000;
-		//m_broadPhase = new b2BroadPhase(aabb);
 	};
 
 	// This is a callback from the broadphase when two AABB proxies begin
@@ -274,8 +268,11 @@ public class b2ContactManager
 			
 			var proxyA:* = fixtureA.m_proxy;
 			var proxyB:* = fixtureB.m_proxy;
-			// Here we cull out contacts that cease to overlap.
-			if ( m_broadPhase.TestOverlap(proxyA, proxyB) == false)
+			
+			var overlap:Boolean = m_broadPhase.TestOverlap(proxyA, proxyB);
+			
+			// Here we destroy contacts that cease to overlap in the broadphase
+			if ( overlap == false)
 			{
 				cNuke = c;
 				c = cNuke.GetNext();

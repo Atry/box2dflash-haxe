@@ -102,9 +102,11 @@ import flash.display.MovieClip;
 			//	TestBridge,				// Bridge
 				TestStack,				// Stack
 			//	TestCCD,				// CCD
-			//	TestTheoJansen,			// Theo Jansen
+				TestTheoJansen,			// Theo Jansen
 			//	TestEdges,				// Edges & Raycast
-			//	TestBuoyancy,			// Buoyancy
+				TestBuoyancy,			// Buoyancy
+				TestOneSidedPlatform,	// One Sided Platform
+				TestBreakable,			// Breakable
 			null
 			];
 			tests.length -= 1;

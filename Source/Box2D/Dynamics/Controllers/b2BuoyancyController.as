@@ -24,26 +24,46 @@ import Box2D.Collision.Shapes.*;
 import Box2D.Dynamics.*;
 
 
-/// Calculates buoyancy forces for fluids in the form of a half plane
+/**
+ * Calculates buoyancy forces for fluids in the form of a half plane
+ */
 public class b2BuoyancyController extends b2Controller
 {
-	/// The outer surface normal
+	/**
+	 * The outer surface normal
+	 */
 	public var normal:b2Vec2 = new b2Vec2(0,-1);
-	/// The height of the fluid surface along the normal
+	/**
+	 * The height of the fluid surface along the normal
+	 */
 	public var offset:Number = 0;
-	/// The fluid density
+	/**
+	 * The fluid density
+	 */
 	public var density:Number = 0;
-	/// Fluid velocity, for drag calculations
+	/**
+	 * Fluid velocity, for drag calculations
+	 */
 	public var velocity:b2Vec2 = new b2Vec2(0,0);
-	/// Linear drag co-efficient
+	/**
+	 * Linear drag co-efficient
+	 */
 	public var linearDrag:Number = 2;
-	/// Linear drag co-efficient
+	/**
+	 * Linear drag co-efficient
+	 */
 	public var angularDrag:Number = 1;
-	/// If false, bodies are assumed to be uniformly dense, otherwise use the shapes densities
+	/**
+	 * If false, bodies are assumed to be uniformly dense, otherwise use the shapes densities
+	 */
 	public var useDensity:Boolean = false; //False by default to prevent a gotcha
-	/// If true, gravity is taken from the world instead of the gravity parameter.
+	/**
+	 * If true, gravity is taken from the world instead of the gravity parameter.
+	 */
 	public var useWorldGravity:Boolean = true;
-	/// Gravity vector, if the world's gravity is not used
+	/**
+	 * Gravity vector, if the world's gravity is not used
+	 */
 	public var gravity:b2Vec2 = null;
 	
 		
@@ -64,16 +84,15 @@ public class b2BuoyancyController extends b2Controller
 			var massc:b2Vec2 = new b2Vec2();
 			var area:Number = 0.0;
 			var mass:Number = 0.0;
-			for(var shape:b2Shape=body.GetShapeList();shape;shape=shape.GetNext()){
+			for(var fixture:b2Fixture=body.GetFixtureList();fixture;fixture=fixture.GetNext()){
 				var sc:b2Vec2 = new b2Vec2();
-				var sarea:Number = shape.ComputeSubmergedArea(normal, offset, body.GetXForm(), sc);
+				var sarea:Number = fixture.GetShape().ComputeSubmergedArea(normal, offset, body.GetTransform(), sc);
 				area += sarea;
 				areac.x += sarea * sc.x;
 				areac.y += sarea * sc.y;
 				var shapeDensity:Number;
 				if (useDensity) {
-					//TODO: Implement when fixtures comes in.
-					//shapeDensity = shape.GetDensity();
+					//TODO: Figure out what to do now density is gone
 					shapeDensity = 1;
 				}else{
 					shapeDensity = 1;

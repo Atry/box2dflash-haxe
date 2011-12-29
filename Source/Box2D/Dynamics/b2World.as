@@ -41,11 +41,10 @@ public class b2World
 	
 	// Construct a world object.
 	/**
-	* @param worldAABB a bounding box that completely encompasses all your shapes.
 	* @param gravity the world gravity vector.
 	* @param doSleep improve performance by not simulating inactive bodies.
 	*/
-	public function b2World(worldAABB:b2AABB, gravity:b2Vec2, doSleep:Boolean){
+	public function b2World(gravity:b2Vec2, doSleep:Boolean){
 		
 		m_destructionListener = null;
 		m_debugDraw = null;
@@ -108,6 +107,24 @@ public class b2World
 	*/
 	public function SetDebugDraw(debugDraw:b2DebugDraw) : void{
 		m_debugDraw = debugDraw;
+	}
+	
+	/**
+	 * Use the given object as a broadphase.
+	 * The old broadphase will not be cleanly emptied.
+	 * @warning It is not recommended you call this except immediately after constructing the world.
+	 * @warning This function is locked during callbacks.
+	 */
+	public function SetBroadPhase(broadPhase:IBroadPhase) : void {
+		var oldBroadPhase:IBroadPhase = m_contactManager.m_broadPhase;
+		m_contactManager.m_broadPhase = broadPhase;
+		for (var b:b2Body = m_bodyList; b; b = b.m_next)
+		{
+			for (var f:b2Fixture = b.m_fixtureList; f; f = f.m_next)
+			{
+				f.m_proxy = broadPhase.CreateProxy(oldBroadPhase.GetFatAABB(f.m_proxy), f);
+			}
+		}
 	}
 	
 	/**
@@ -418,7 +435,9 @@ public class b2World
 		
 	}
 	
-	/// Add a controller to the world list
+	/**
+	 * Add a controller to the world list
+	 */
 	public function AddController(c:b2Controller) : b2Controller
 	{
 		c.m_next = m_controllerList;
@@ -590,8 +609,10 @@ public class b2World
 		m_flags &= ~e_locked;
 	}
 	
-	static private var s_xf:b2XForm = new b2XForm();
-	/// Call this to draw shapes and other debug draw data.
+	static private var s_xf:b2Transform = new b2Transform();
+	/**
+	 * Call this to draw shapes and other debug draw data.
+	 */
 	public function DrawDebugData() : void{
 		
 		if (m_debugDraw == null)
@@ -613,7 +634,7 @@ public class b2World
 		var x1:b2Vec2 = new b2Vec2;
 		var x2:b2Vec2 = new b2Vec2;
 		var color:b2Color = new b2Color(0,0,0);
-		var xf:b2XForm;
+		var xf:b2Transform;
 		var b1:b2AABB = new b2AABB();
 		var b2:b2AABB = new b2AABB();
 		var vs:Array = [new b2Vec2(), new b2Vec2(), new b2Vec2(), new b2Vec2()];
@@ -676,7 +697,7 @@ public class b2World
 			{
 				for (f = b.GetFixtureList(); f; f = f.GetNext())
 				{
-					var aabb:b2AABB = bp.GetAABB(f.m_proxy);
+					var aabb:b2AABB = bp.GetFatAABB(f.m_proxy);
 					vs[0].Set(aabb.lowerBound.x, aabb.lowerBound.y);
 					vs[1].Set(aabb.upperBound.x, aabb.lowerBound.y);
 					vs[2].Set(aabb.upperBound.x, aabb.upperBound.y);
@@ -699,13 +720,136 @@ public class b2World
 		}
 	}
 
-	/// Query the world for all fixtures that potentially overlap the
-	/// provided AABB.
-	/// @param callback a user implemented callback class.
-	/// @param aabb the query box.
-	public function Query(callback:Function, aabb:b2AABB):void
+	/**
+	 * Query the world for all fixtures that potentially overlap the
+	 * provided AABB.
+	 * @param callback a user implemented callback class. It should match signature
+	 * <code>function Callback(fixture:b2Fixture):Boolean</code>
+	 * Return true to continue to the next fixture.
+	 * @param aabb the query box.
+	 */
+	public function QueryAABB(callback:Function, aabb:b2AABB):void
 	{
-		m_contactManager.m_broadPhase.Query(callback, aabb);
+		var broadPhase:IBroadPhase = m_contactManager.m_broadPhase;
+		function WorldQueryWrapper(proxy:*):Boolean
+		{
+			return callback(broadPhase.GetUserData(proxy));
+		}
+		broadPhase.Query(WorldQueryWrapper, aabb);
+	}
+	/**
+	 * Query the world for all fixtures that precisely overlap the
+	 * provided transformed shape.
+	 * @param callback a user implemented callback class. It should match signature
+	 * <code>function Callback(fixture:b2Fixture):Boolean</code>
+	 * Return true to continue to the next fixture.
+	 */
+	public function QueryShape(callback:Function, shape:b2Shape, transform:b2Transform = null):void
+	{
+		if (transform == null)
+		{
+			transform = new b2Transform();
+			transform.SetIdentity();
+		}
+		var broadPhase:IBroadPhase = m_contactManager.m_broadPhase;
+		function WorldQueryWrapper(proxy:*):Boolean
+		{
+			var fixture:b2Fixture = broadPhase.GetUserData(proxy) as b2Fixture
+			if(b2Shape.TestOverlap(shape, transform, fixture.GetShape(), fixture.GetBody().GetTransform()))
+				return callback(fixture);
+			return true;
+		}
+		var aabb:b2AABB = new b2AABB();
+		shape.ComputeAABB(aabb, transform);
+		broadPhase.Query(WorldQueryWrapper, aabb);
+	}
+	
+/**
+	 * Query the world for all fixtures that contain a point.
+	 * @param callback a user implemented callback class. It should match signature
+	 * <code>function Callback(fixture:b2Fixture):Boolean</code>
+	 * Return true to continue to the next fixture.
+	 */
+	public function QueryPoint(callback:Function, p:b2Vec2):void
+	{
+		var broadPhase:IBroadPhase = m_contactManager.m_broadPhase;
+		function WorldQueryWrapper(proxy:*):Boolean
+		{
+			var fixture:b2Fixture = broadPhase.GetUserData(proxy) as b2Fixture
+			if(fixture.TestPoint(p))
+				return callback(fixture);
+			return true;
+		}
+		// Make a small box.
+		var aabb:b2AABB = new b2AABB();
+		aabb.lowerBound.Set(p.x - b2Settings.b2_linearSlop, p.y - b2Settings.b2_linearSlop);
+		aabb.upperBound.Set(p.x + b2Settings.b2_linearSlop, p.y + b2Settings.b2_linearSlop);
+		broadPhase.Query(WorldQueryWrapper, aabb);
+	}
+	
+	/**
+	 * Ray-cast the world for all fixtures in the path of the ray. Your callback
+	 * Controls whether you get the closest point, any point, or n-points
+	 * The ray-cast ignores shapes that contain the starting point
+	 * @param callback A callback function which must be of signature:
+	 * <code>function Callback(fixture:b2Fixture,    // The fixture hit by the ray
+	 * point:b2Vec2,         // The point of initial intersection
+	 * normal:b2Vec2,        // The normal vector at the point of intersection
+	 * fraction:Number       // The fractional length along the ray of the intersection
+	 * ):Number
+	 * </code>
+	 * Callback should return the new length of the ray as a fraction of the original length.
+	 * By returning 0, you immediately terminate.
+	 * By returning 1, you continue wiht the original ray.
+	 * By returning the current fraction, you proceed to find the closest point.
+	 * @param point1 the ray starting point
+	 * @param point2 the ray ending point
+	 */
+	public function RayCast(callback:Function, point1:b2Vec2, point2:b2Vec2):void
+	{
+		var broadPhase:IBroadPhase = m_contactManager.m_broadPhase;
+		var output:b2RayCastOutput = new b2RayCastOutput;
+		function RayCastWrapper(input:b2RayCastInput, proxy:*):Number
+		{
+			var userData:* = broadPhase.GetUserData(proxy);
+			var fixture:b2Fixture = userData as b2Fixture;
+			fixture.RayCast(output, input);
+			if (output.hit == b2Shape.e_hitCollide)
+			{
+				var fraction:Number = output.fraction;
+				var point:b2Vec2 = new b2Vec2(
+					(1.0 - fraction) * point1.x + fraction * point2.x,
+					(1.0 - fraction) * point1.y + fraction * point2.y);
+				return callback(fixture, point1, output.normal, fraction);
+			}
+			return input.maxFraction;
+		}
+		var input:b2RayCastInput = new b2RayCastInput(point1, point2);
+		broadPhase.RayCast(RayCastWrapper, input);
+	}
+	
+	public function RayCastOne(point1:b2Vec2, point2:b2Vec2):b2Fixture
+	{
+		var result:b2Fixture;
+		function RayCastOneWrapper(fixture:b2Fixture, point:b2Vec2, normal:b2Vec2, fraction:Number):Number
+		{
+			result = fixture;
+			return fraction;
+		}
+		RayCast(RayCastOneWrapper, point1, point2);
+		return result;
+	}
+	
+	public function RayCastAll(point1:b2Vec2, point2:b2Vec2):Array/*b2Fixture*/
+	{
+		var result:Array/*b2Fixture*/ = [];
+		function RayCastAllWrapper(fixture:b2Fixture, point:b2Vec2, normal:b2Vec2, fraction:Number):Number
+		{
+			result.push(fixture);
+			return 1;
+		}
+		RayCast(RayCastAllWrapper, point1, point2);
+		return result;
 	}
 		
 	/**
@@ -778,7 +922,7 @@ public class b2World
 			trace(count);
 		//Redundantly do TestSegment a second time, as the previous one's results are inaccessible
 		var shape:b2Shape = shapes[0];
-		var xf:b2XForm = shape.GetBody().GetXForm();
+		var xf:b2Transform = shape.GetBody().GetTransform();
 		shape.TestSegment(xf,lambda,normal,segment,1);
 		//We already know it returned true
 		return shape;
@@ -802,16 +946,20 @@ public class b2World
 		return m_jointList;
 	}
 
-	/// Get the world contact list. With the returned contact, use b2Contact::GetNext to get
-	/// the next contact in the world list. A NULL contact indicates the end of the list.
-	/// @return the head of the world contact list.
-	/// @warning contacts are 
+	/**
+	 * Get the world contact list. With the returned contact, use b2Contact::GetNext to get
+	 * the next contact in the world list. A NULL contact indicates the end of the list.
+	 * @return the head of the world contact list.
+	 * @warning contacts are 
+	 */
 	public function GetContactList():b2Contact
 	{
 		return m_contactList;
 	}
 	
-	/// Is the world locked (in the middle of a time step).
+	/**
+	 * Is the world locked (in the middle of a time step).
+	 */
 	public function IsLocked():Boolean
 	{
 		return (m_flags & e_locked) > 0;
@@ -853,7 +1001,7 @@ public class b2World
 		var stack:Array = new Array(stackSize);
 		for (var seed:b2Body = m_bodyList; seed; seed = seed.m_next)
 		{
-			if (seed.m_flags & (b2Body.e_islandFlag | b2Body.e_sleepFlag | b2Body.e_frozenFlag))
+			if (seed.m_flags & (b2Body.e_islandFlag | b2Body.e_sleepFlag))
 			{
 				continue;
 			}
@@ -891,13 +1039,13 @@ public class b2World
 				for (var ce:b2ContactEdge = b.m_contactList; ce; ce = ce.next)
 				{
 					// Has this contact already been added to an island?
-					if (ce.contact.m_flags & (b2Contact.e_islandFlag | b2Contact.e_nonSolidFlag))
+					if (ce.contact.m_flags & b2Contact.e_islandFlag)
 					{
 						continue;
 					}
 					
 					// Is this contact touching?
-					if ((ce.contact.m_flags & b2Contact.e_touchFlag) == 0)
+					if (ce.contact.IsSolid() == false || ce.contact.IsTouching() == false)
 					{
 						continue;
 					}
@@ -958,10 +1106,10 @@ public class b2World
 		
 		//m_stackAllocator.Free(stack);
 		
-		// Synchronize shapes, check for out of range bodies.
+		// Synchronize fixutres, check for out of range bodies.
 		for (b = m_bodyList; b; b = b.m_next)
 		{
-			if (b.m_flags & (b2Body.e_sleepFlag | b2Body.e_frozenFlag))
+			if (b.m_flags & b2Body.e_sleepFlag)
 			{
 				continue;
 			}
@@ -1033,7 +1181,8 @@ public class b2World
 			
 			for (c = m_contactList; c; c = c.m_next)
 			{
-				if (c.m_flags & (b2Contact.e_slowFlag | b2Contact.e_nonSolidFlag))
+				// Can this contact generate a solid TOI contact?
+ 				if (c.IsSolid() == false || c.IsContinuous() == false)
 				{
 					continue;
 				}
@@ -1077,8 +1226,7 @@ public class b2World
 					
 					// Compute the time of impact.
 					toi = c.ComputeTOI(bA.m_sweep, bB.m_sweep);
-					//toi = b2TimeOfImpact.TimeOfImpact(c.m_shape1, b1.m_sweep, c.m_shape2, b2.m_sweep);
-					//b2Settings.b2Assert(0.0 <= toi && toi <= 1.0);
+					b2Settings.b2Assert(0.0 <= toi && toi <= 1.0);
 					
 					// If the TOI is in range ...
 					if (toi > 0.0 && toi < 1.0)
@@ -1113,6 +1261,8 @@ public class b2World
 			fB = minContact.m_fixtureB;
 			bA = fA.m_body;
 			bB = fB.m_body;
+			var backupA:b2Sweep = bA.m_sweep.Copy();
+			var backupB:b2Sweep = bB.m_sweep.Copy();
 			bA.Advance(minTOI);
 			bB.Advance(minTOI);
 			
@@ -1120,10 +1270,21 @@ public class b2World
 			minContact.Update(m_contactManager.m_contactListener);
 			minContact.m_flags &= ~b2Contact.e_toiFlag;
 			
-			if ((minContact.m_flags & b2Contact.e_touchFlag) == 0)
+			// Is the contact solid?
+			if (minContact.IsSolid() == false)
 			{
-				// This shouldn't happen. Numerical error?
-				//b2Assert(false);
+				// Restore the sweeps
+				bA.m_sweep = backupA;
+				bB.m_sweep = backupB;
+				bA.SynchronizeTransform();
+				bB.SynchronizeTransform();
+				continue;
+			}
+			
+			// Did numerical issues prevent;,ontact pointjrom being generated
+			if (minContact.IsTouching() == false)
+			{
+				// Give up on this TOI
 				continue;
 			}
 			
@@ -1166,17 +1327,17 @@ public class b2World
 					// Does the TOI island still have space for contacts?
 					if (island.m_contactCount == island.m_contactCapacity)
 					{
-						continue;
+						break;
 					}
 					
-					// Has this contact already been added to an island? Skip slow or non-solid contacts.
-					if (cEdge.contact.m_flags & (b2Contact.e_islandFlag | b2Contact.e_slowFlag | b2Contact.e_nonSolidFlag))
+					// Has this contact already been added to an island?
+					if (cEdge.contact.m_flags & b2Contact.e_islandFlag)
 					{
 						continue;
 					}
 					
-					// Is this contact touching? For performance we are not updating this contact.
-					if ((cEdge.contact.m_flags & b2Contact.e_touchFlag) == 0)
+					// Is this contact solid and touching? For performance we are not updating this contact.
+					if (cEdge.contact.IsSolid() == false || cEdge.contact.IsTouching() == false)
 					{
 						continue;
 					}
@@ -1252,7 +1413,7 @@ public class b2World
 				b = island.m_bodies[i];
 				b.m_flags &= ~b2Body.e_islandFlag;
 				
-				if (b.m_flags & (b2Body.e_sleepFlag | b2Body.e_frozenFlag))
+				if (b.m_flags & b2Body.e_sleepFlag)
 				{
 					continue;
 				}
@@ -1302,8 +1463,8 @@ public class b2World
 		
 		var b1:b2Body = joint.m_bodyA;
 		var b2:b2Body = joint.m_bodyB;
-		var xf1:b2XForm = b1.m_xf;
-		var xf2:b2XForm = b2.m_xf;
+		var xf1:b2Transform = b1.m_xf;
+		var xf2:b2Transform = b2.m_xf;
 		var x1:b2Vec2 = xf1.position;
 		var x2:b2Vec2 = xf2.position;
 		var p1:b2Vec2 = joint.GetAnchor1();
@@ -1342,7 +1503,7 @@ public class b2World
 		}
 	}
 	
-	b2internal function DrawShape(shape:b2Shape, xf:b2XForm, color:b2Color) : void{
+	b2internal function DrawShape(shape:b2Shape, xf:b2Transform, color:b2Color) : void{
 		
 		switch (shape.m_type)
 		{
@@ -1398,7 +1559,7 @@ public class b2World
 			return -1;
 		
 		var body:b2Body = shape.GetBody();
-		var xf:b2XForm = body.GetXForm();
+		var xf:b2Transform = body.GetTransform();
 		var lambda:Array = [0];
 		if(shape.TestSegment(xf, lambda, m_raycastNormal, m_raycastSegment, 1)==b2Shape.e_missCollide)
 			return -1;
@@ -1410,7 +1571,7 @@ public class b2World
 			return -1;
 		
 		var body:b2Body = shape.GetBody();
-		var xf:b2XForm = body.GetXForm();
+		var xf:b2Transform = body.GetTransform();
 		var lambda:Array = [0];
 		if(shape.TestSegment(xf, lambda, m_raycastNormal, m_raycastSegment, 1)!=b2Shape.e_hitCollide)
 			return -1;

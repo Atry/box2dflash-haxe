@@ -39,7 +39,9 @@ use namespace b2internal;
 public class b2Shape
 {
 	
-	/// Clone the shape
+	/**
+	 * Clone the shape
+	 */
 	virtual public function Copy():b2Shape
 	{
 		//var s:b2Shape = new b2Shape();
@@ -48,7 +50,9 @@ public class b2Shape
 		return null; // Abstract type
 	}
 	
-	/// Assign the properties of anther shape to this
+	/**
+	 * Assign the properties of anther shape to this
+	 */
 	virtual public function Set(other:b2Shape):void
 	{
 		//Don't copy m_type?
@@ -70,34 +74,25 @@ public class b2Shape
 	* @param xf the shape world transform.
 	* @param p a point in world coordinates.
 	*/
-	public virtual function TestPoint(xf:b2XForm, p:b2Vec2) : Boolean {return false};
+	public virtual function TestPoint(xf:b2Transform, p:b2Vec2) : Boolean {return false};
 
 	/**
-	* Perform a ray cast against this shape.
-	* @param xf the shape world transform.
-	* @param lambda returns the hit fraction. You can use this to compute the contact point:
-	* p = (1 - lambda) * segment.p1 + lambda * segment.p2.
-	* 
-	* lambda should be an array with one member. After calling TestSegment, you can retrieve the output value with
-	* lambda[0].
-	* @param normal returns the normal at the contact point. If there is no intersection, the normal
-	* is not set.
-	* @param segment defines the begin and end point of the ray cast.
-	* @param maxLambda a number typically in the range [0,1].
-	* @return b2Shape.e_hitCollide if there was an intersection, b2Shape.e_startsInsideCollide if the point is inside and b2Shape.e_missCollide otherwise.
-	*/
-	public virtual function  TestSegment(xf:b2XForm,
-								lambda:Array, // float pointer
-								normal:b2Vec2, // pointer
-								segment:b2Segment,
-								maxLambda:Number) : int {return e_missCollide};
+	 * Cast a ray against this shape.
+	 * @param output the ray-cast results.
+	 * @param input the ray-cast input parameters.
+	 * @param transform the transform to be applied to the shape.
+	 */
+	public virtual function RayCast(output:b2RayCastOutput, input:b2RayCastInput, transform:b2Transform):void
+	{
+		output.hit = e_missCollide;
+	}
 
 	/**
 	* Given a transform, compute the associated axis aligned bounding box for this shape.
 	* @param aabb returns the axis aligned box.
 	* @param xf the world transform of the shape.
 	*/
-	public virtual function  ComputeAABB(aabb:b2AABB, xf:b2XForm) : void {};
+	public virtual function  ComputeAABB(aabb:b2AABB, xf:b2Transform) : void {};
 
 	/**
 	* Compute the mass properties of this shape using its dimensions and density.
@@ -117,8 +112,25 @@ public class b2Shape
 	public virtual function ComputeSubmergedArea(
 				normal:b2Vec2,
 				offset:Number,
-				xf:b2XForm,
+				xf:b2Transform,
 				c:b2Vec2):Number { return 0; };
+				
+	public static function TestOverlap(shape1:b2Shape, transform1:b2Transform, shape2:b2Shape, transform2:b2Transform):Boolean
+	{
+		var input:b2DistanceInput = new b2DistanceInput();
+		input.proxyA = new b2DistanceProxy();
+		input.proxyA.Set(shape1);
+		input.proxyB = new b2DistanceProxy();
+		input.proxyB.Set(shape2);
+		input.transformA = transform1;
+		input.transformB = transform2;
+		input.useRadii = false;
+		var simplexCache:b2SimplexCache = new b2SimplexCache();
+		simplexCache.count = 0;
+		var output:b2DistanceOutput = new b2DistanceOutput();
+		b2Distance.Distance(output, simplexCache, input);
+		return output.distance == 0.0;
+	}
 	
 	//--------------- Internals Below -------------------
 	/**
@@ -147,7 +159,9 @@ public class b2Shape
 		static b2internal const e_shapeTypeCount:int = 	3;
 	//};
 	
-	/// Possible return values for TestSegment
+	/**
+	 * Possible return values for TestSegment
+	 */
 		/** Return value for TestSegment indicating a hit. */
 		static public const e_hitCollide:int = 1;
 		/** Return value for TestSegment indicating a miss. */

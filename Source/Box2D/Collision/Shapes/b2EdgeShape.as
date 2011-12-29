@@ -40,22 +40,18 @@ public class b2EdgeShape extends b2Shape
 	/**
 	* Returns false. Edges cannot contain points. 
 	*/
-	public override function TestPoint(transform:b2XForm, p:b2Vec2) : Boolean{
+	public override function TestPoint(transform:b2Transform, p:b2Vec2) : Boolean{
 		return false;
 	}
 
 	/**
 	* @inheritDoc
 	*/
-	public override function TestSegment(	transform:b2XForm,
-						lambda:Array, // float pointer
-						normal:b2Vec2, // pointer
-						segment:b2Segment,
-						maxLambda:Number) :int
+	public override function RayCast(output:b2RayCastOutput, input:b2RayCastInput, transform:b2Transform):void
 	{
 		var tMat:b2Mat22;
-		var rX: Number = segment.p2.x - segment.p1.x;
-		var rY: Number = segment.p2.y - segment.p1.y;
+		var rX: Number = input.p2.x - input.p1.x;
+		var rY: Number = input.p2.y - input.p1.y;
 		
 		//b2Vec2 v1 = b2Mul(transform, m_v1);
 		tMat = transform.R;
@@ -73,11 +69,11 @@ public class b2EdgeShape extends b2Shape
 		if (denom > k_slop)
 		{
 			// Does the segment intersect the infinite line associated with this segment?
-			var bX: Number = segment.p1.x - v1X;
-			var bY: Number = segment.p1.y - v1Y;
+			var bX: Number = input.p1.x - v1X;
+			var bY: Number = input.p1.y - v1Y;
 			var a: Number = (bX * nX + bY * nY);
 	
-			if (0.0 <= a && a <= maxLambda * denom)
+			if (0.0 <= a && a <= input.maxFraction * denom)
 			{
 				var mu2: Number = -rX * bY + rY * bX;
 	
@@ -85,22 +81,24 @@ public class b2EdgeShape extends b2Shape
 				if (-k_slop * denom <= mu2 && mu2 <= denom * (1.0 + k_slop))
 				{
 					a /= denom;
-					lambda[0] = a;
+					output.fraction = a;
 					var nLen: Number = Math.sqrt(nX * nX + nY * nY);
-					normal.x = nX / nLen;
-					normal.y = nY / nLen;
-					return e_hitCollide;
+					output.normal.x = nX / nLen;
+					output.normal.y = nY / nLen;
+					output.hit = e_hitCollide;
+					return;
 				}
 			}
 		}
 	
-		return e_missCollide;
+		output.hit = e_missCollide;
+		return;
 	}
 
 	/**
 	* @inheritDoc
 	*/
-	public override function ComputeAABB(aabb:b2AABB, transform:b2XForm) : void{
+	public override function ComputeAABB(aabb:b2AABB, transform:b2Transform) : void{
 		var tMat:b2Mat22 = transform.R;
 		//b2Vec2 v1 = b2Mul(transform, m_v1);
 		var v1X:Number = transform.position.x + (tMat.col1.x * m_v1.x + tMat.col2.x * m_v1.y);
@@ -139,7 +137,7 @@ public class b2EdgeShape extends b2Shape
 	public override function ComputeSubmergedArea(
 			normal:b2Vec2,
 			offset:Number,
-			xf:b2XForm,
+			xf:b2Transform,
 			c:b2Vec2):Number
 	{
 		// Note that v0 is independant of any details of the specific edge
@@ -291,7 +289,7 @@ public class b2EdgeShape extends b2Shape
 	/**
 	* Get the first vertex and apply the supplied transform.
 	*/
-	public function GetFirstVertex(xf: b2XForm): b2Vec2
+	public function GetFirstVertex(xf: b2Transform): b2Vec2
 	{
 		//return b2Mul(xf, m_coreV1);
 		var tMat:b2Mat22 = xf.R;
@@ -320,7 +318,7 @@ public class b2EdgeShape extends b2Shape
 	* Get the support point in the given world direction.
 	* Use the supplied transform.
 	*/
-	public function Support(xf:b2XForm, dX:Number, dY:Number) : b2Vec2{
+	public function Support(xf:b2Transform, dX:Number, dY:Number) : b2Vec2{
 		var tMat:b2Mat22 = xf.R;
 		//b2Vec2 v1 = b2Mul(xf, m_coreV1);
 		var v1X:Number = xf.position.x + (tMat.col1.x * m_coreV1.x + tMat.col2.x * m_coreV1.y);

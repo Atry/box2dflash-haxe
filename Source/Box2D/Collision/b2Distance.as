@@ -45,8 +45,8 @@ public static function Distance(output:b2DistanceOutput, cache:b2SimplexCache, i
 	var proxyA:b2DistanceProxy = input.proxyA;
 	var proxyB:b2DistanceProxy = input.proxyB;
 	
-	var transformA:b2XForm = input.transformA;
-	var transformB:b2XForm = input.transformB;
+	var transformA:b2Transform = input.transformA;
+	var transformB:b2Transform = input.transformB;
 	
 	// Initialize the simplex
 	var simplex:b2Simplex = new b2Simplex();
@@ -132,7 +132,7 @@ public static function Distance(output:b2DistanceOutput, cache:b2SimplexCache, i
 		vertex.indexA = proxyA.GetSupport(b2Math.b2MulTMV(transformA.R, d.Negative()));
 		vertex.wA = b2Math.b2MulX(transformA, proxyA.GetVertex(vertex.indexA));
 		vertex.indexB = proxyB.GetSupport(b2Math.b2MulTMV(transformB.R, d));
-		vertex.wB = b2Math.b2MulX(transformA, proxyB.GetVertex(vertex.indexB));
+		vertex.wB = b2Math.b2MulX(transformB, proxyB.GetVertex(vertex.indexB));
 		vertex.w = b2Math.SubtractVV(vertex.wB, vertex.wA);
 		
 		// Iteration count is equated to the number of support point calls.
@@ -143,7 +143,7 @@ public static function Distance(output:b2DistanceOutput, cache:b2SimplexCache, i
 		var duplicate:Boolean = false;
 		for (i = 0; i < saveCount; i++)
 		{
-			if (vertex.indexA == saveA[i] && vertex.indexB == saveB[i]);
+			if (vertex.indexA == saveA[i] && vertex.indexB == saveB[i])
 			{
 				duplicate = true;
 				break;
@@ -170,7 +170,7 @@ public static function Distance(output:b2DistanceOutput, cache:b2SimplexCache, i
 	// Cache the simplex
 	simplex.WriteCache(cache);
 	
-	// APply radii if requested.
+	// Apply radii if requested.
 	if (input.useRadii)
 	{
 		var rA:Number = proxyA.m_radius;
@@ -236,8 +236,8 @@ internal class b2Simplex
 {
 
 public function ReadCache(cache:b2SimplexCache, 
-			proxyA:b2DistanceProxy, transformA:b2XForm,
-			proxyB:b2DistanceProxy, transformB:b2XForm):void
+			proxyA:b2DistanceProxy, transformA:b2Transform,
+			proxyB:b2DistanceProxy, transformB:b2Transform):void
 {
 	b2Settings.b2Assert(0 <= cache.count && cache.count <= 3);
 	
@@ -273,7 +273,7 @@ public function ReadCache(cache:b2SimplexCache,
 		}
 	}
 	
-	// If the cahce is empty or invalid
+	// If the cache is empty or invalid
 	if (m_count == 0)
 	{
 		v = vertices[0];
@@ -282,7 +282,7 @@ public function ReadCache(cache:b2SimplexCache,
 		wALocal = proxyA.GetVertex(0);
 		wBLocal = proxyB.GetVertex(0);
 		v.wA = b2Math.b2MulX(transformA, wALocal);
-		v.wB = b2Math.b2MulX(transformB, wALocal);
+		v.wB = b2Math.b2MulX(transformB, wBLocal);
 		v.w = b2Math.SubtractVV(v.wB, v.wA);
 		m_count = 1;
 	}

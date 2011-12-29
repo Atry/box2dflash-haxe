@@ -36,7 +36,7 @@ package TestBed{
 	
 	
 	
-	public class Test{
+	public class Test {
 		
 		public function Test(){
 			
@@ -53,7 +53,8 @@ package TestBed{
 			var doSleep:Boolean = true;
 			
 			// Construct a world object
-			m_world = new b2World(worldAABB, gravity, doSleep);
+			m_world = new b2World(gravity, doSleep);
+			//m_world.SetBroadPhase(new b2BroadPhase(worldAABB));
 			// set debug draw
 			var dbgDraw:b2DebugDraw = new b2DebugDraw();
 			//var dbgSprite:Sprite = new Sprite();
@@ -65,10 +66,6 @@ package TestBed{
 			dbgDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
 			m_world.SetDebugDraw(dbgDraw);
 			
-			m_world.SetWarmStarting(false);
-			m_world.SetContinuousPhysics(false);
-			
-			
 			// Create border of boxes
 			var wall:b2PolygonShape= new b2PolygonShape();
 			var wallBd:b2BodyDef = new b2BodyDef();
@@ -79,23 +76,19 @@ package TestBed{
 			wall.SetAsBox(100/m_physScale, 400/m_physScale/2);
 			wallB = m_world.CreateBody(wallBd);
 			wallB.CreateFixture2(wall);
-			wallB.SetMassFromShapes();
 			// Right
 			wallBd.position.Set((640 + 95) / m_physScale, 360 / m_physScale / 2);
 			wallB = m_world.CreateBody(wallBd);
 			wallB.CreateFixture2(wall);
-			wallB.SetMassFromShapes();
 			// Top
 			wallBd.position.Set(640 / m_physScale / 2, -95 / m_physScale);
 			wall.SetAsBox(680/m_physScale/2, 100/m_physScale);
 			wallB = m_world.CreateBody(wallBd);
 			wallB.CreateFixture2(wall);
-			wallB.SetMassFromShapes();
 			// Bottom
 			wallBd.position.Set(640 / m_physScale / 2, (360 + 95) / m_physScale);
 			wallB = m_world.CreateBody(wallBd);
 			wallB.CreateFixture2(wall);
-			wallB.SetMassFromShapes();
 		}
 		
 		
@@ -237,19 +230,21 @@ package TestBed{
 			aabb.upperBound.Set(mouseXWorldPhys + 0.001, mouseYWorldPhys + 0.001);
 			var body:b2Body = null;
 			// Query the world for overlapping shapes.
-			function GetBodyCallback(fixture:b2Fixture):void
+			function GetBodyCallback(fixture:b2Fixture):Boolean
 			{
 				var shape:b2Shape = fixture.GetShape();
 				if (fixture.GetBody().IsStatic() == false || includeStatic)
 				{
-					var inside:Boolean = shape.TestPoint(fixture.GetBody().GetXForm(), mousePVec);
+					var inside:Boolean = shape.TestPoint(fixture.GetBody().GetTransform(), mousePVec);
 					if (inside)
 					{
 						body = fixture.GetBody();
+						return false;
 					}
 				}
+				return true;
 			}
-			m_world.Query(GetBodyCallback, aabb);
+			m_world.QueryAABB(GetBodyCallback, aabb);
 			return body;
 		}
 		

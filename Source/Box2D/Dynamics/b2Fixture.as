@@ -30,35 +30,45 @@ import Box2D.Common.b2internal;
 use namespace b2internal;
 
 
-/// A fixture is used to attach a shape to a body for collision detection. A fixture
-/// inherits its transform from its parent. Fixtures hold additional non-geometric data
-/// such as friction, collision filters, etc.
-/// Fixtures are created via b2Body::CreateFixture.
-/// @warning you cannot reuse fixtures.
+/**
+ * A fixture is used to attach a shape to a body for collision detection. A fixture
+ * inherits its transform from its parent. Fixtures hold additional non-geometric data
+ * such as friction, collision filters, etc.
+ * Fixtures are created via b2Body::CreateFixture.
+ * @warning you cannot reuse fixtures.
+ */
 public class b2Fixture
 {
-	/// Get the type of the child shape. You can use this to down cast to the concrete shape.
-	/// @return the shape type.
+	/**
+	 * Get the type of the child shape. You can use this to down cast to the concrete shape.
+	 * @return the shape type.
+	 */
 	public function GetType():int
 	{
 		return m_shape.GetType();
 	}
 	
-	/// Get the child shape. You can modify the child shape, however you should not change the
-	/// number of vertices because this will crash some collision caching mechanisms.
+	/**
+	 * Get the child shape. You can modify the child shape, however you should not change the
+	 * number of vertices because this will crash some collision caching mechanisms.
+	 */
 	public function GetShape():b2Shape
 	{
 		return m_shape;
 	}
 	
-	/// Is this fixture a sensor (non-solid)?
-	/// @return the true if the shape is a sensor.
+	/**
+	 * Is this fixture a sensor (non-solid)?
+	 * @return the true if the shape is a sensor.
+	 */
 	public function IsSensor():Boolean
 	{
 		return m_isSensor;
 	}
 	
-	/// Set if this fixture is a sensor.
+	/**
+	 * Set if this fixture is a sensor.
+	 */
 	public function SetSensor(sensor:Boolean):void
 	{
 		if ( m_isSensor == sensor)
@@ -77,15 +87,17 @@ public class b2Fixture
 			var fixtureA:b2Fixture = contact.GetFixtureA();
 			var fixtureB:b2Fixture = contact.GetFixtureB();
 			if (fixtureA == this || fixtureB == this)
-				contact.SetSolid(!m_isSensor);//TODO: This is wrong, but wait for Erin to correct
+				contact.SetAsSensor(m_isSensor);
 			edge = edge.next;
 		}
 		
 	}
 	
-	/// Set the contact filtering data. This is an expensive operation and should
-	/// not be called frequently. This will not update contacts until the next time
-	/// step when either parent body is awake.
+	/**
+	 * Set the contact filtering data. This is an expensive operation and should
+	 * not be called frequently. This will not update contacts until the next time
+	 * step when either parent body is awake.
+	 */
 	public function SetFilterData(filter:b2FilterData):void
 	{
 		m_filter = filter.Copy();
@@ -105,126 +117,133 @@ public class b2Fixture
 		}
 	}
 	
-	/// Get the contact filtering data.
+	/**
+	 * Get the contact filtering data.
+	 */
 	public function GetFilterData(): b2FilterData
 	{
 		return m_filter.Copy();
 	}
 	
-	/// Get the parent body of this fixture. This is NULL if the fixture is not attached.
-	/// @return the parent body.
+	/**
+	 * Get the parent body of this fixture. This is NULL if the fixture is not attached.
+	 * @return the parent body.
+	 */
 	public function GetBody():b2Body
 	{
 		return m_body;
 	}
 	
-	/// Get the next fixture in the parent body's fixture list.
-	/// @return the next shape.
+	/**
+	 * Get the next fixture in the parent body's fixture list.
+	 * @return the next shape.
+	 */
 	public function GetNext():b2Fixture
 	{
 		return m_next;
 	}
 	
-	/// Get the user data that was assigned in the fixture definition. Use this to
-	/// store your application specific data.
+	/**
+	 * Get the user data that was assigned in the fixture definition. Use this to
+	 * store your application specific data.
+	 */
 	public function GetUserData():*
 	{
 		return m_userData;
 	}
 	
-	/// Set the user data. Use this to store your application specific data.
+	/**
+	 * Set the user data. Use this to store your application specific data.
+	 */
 	public function SetUserData(data:*):void
 	{
 		m_userData = data;
 	}
 	
-	/// Test a point for containment in this fixture. This only works for convex shapes.
-	/// @param xf the shape world transform.
-	/// @param p a point in world coordinates.
+	/**
+	 * Test a point for containment in this fixture. This only works for convex shapes.
+	 * @param xf the shape world transform.
+	 * @param p a point in world coordinates.
+	 */
 	public function TestPoint(p:b2Vec2):Boolean
 	{
-		return m_shape.TestPoint(m_body.GetXForm(), p);
+		return m_shape.TestPoint(m_body.GetTransform(), p);
 	}
 	
-	/// Perform a ray cast against this shape.
-	/// @param xf the shape world transform.
-	/// @param lambda returns the hit fraction. You can use this to compute the contact point
-	/// p = (1 - lambda) * segment.p1 + lambda * segment.p2.
-	/// @param normal returns the normal at the contact point. If there is no intersection, the normal
-	/// is not set.
-	/// @param segment defines the begin and end point of the ray cast.
-	/// @param maxLambda a number typically in the range [0,1].
-	public function TestSegment(lambda:Array, normal:b2Vec2, segment:b2Segment, maxLambda:Number):int
+	/**
+	 * Perform a ray cast against this shape.
+	 * @param output the ray-cast results.
+	 * @param input the ray-cast input parameters.
+	 */
+	public function RayCast(output:b2RayCastOutput, input:b2RayCastInput):void
 	{
-		return m_shape.TestSegment(m_body.GetXForm(), lambda, normal, segment, maxLambda);
+		return m_shape.RayCast(output, input, m_body.GetTransform());
 	}
 	
-	/// Compute the mass properties of this shape using its dimensions and density.
-	/// The inertia tensor is computed about the local origin, not the centroid.
-	/// @param massData returns the mass data for this shape.
-	public function ComputeMass(massData:b2MassData):void
+	/**
+	 * Get the mass data for this fixture. The mass data is based on the density and
+	 * the shape. The rotational inertia is about the shape's origin.
+	 */
+	public function GetMassData():b2MassData
 	{
-		m_shape.ComputeMass(massData, m_density);
+		return m_massData;
 	}
 	
-	/// Get the coefficient of friction.
+	/**
+	 * Get the coefficient of friction.
+	 */
 	public function GetFriction():Number
 	{
 		return m_friction;
 	}
 	
-	/// Set the coefficient of friction.
+	/**
+	 * Set the coefficient of friction.
+	 */
 	public function SetFriction(friction:Number):void
 	{
 		m_friction = friction;
 	}
 	
-	/// Get the coefficient of restitution.
+	/**
+	 * Get the coefficient of restitution.
+	 */
 	public function GetRestitution():Number
 	{
 		return m_restitution;
 	}
 	
-	/// Get the coefficient of restitution.
+	/**
+	 * Get the coefficient of restitution.
+	 */
 	public function SetRestitution(restitution:Number):void
 	{
 		m_restitution = restitution;
 	}
 	
-	/// Get the density.
-	public function GetDensity():Number
-	{
-		return m_density;
-	}
-	
-	/// Set the density.
-	/// @warning this does not automatically update the mass of the parent body.
-	public function SetDensity(density:Number):void
-	{
-		m_density = density;
-	}
 	/**
 	 * @private
 	 */
 	public function b2Fixture()
 	{
+		m_aabb = new b2AABB();
 		m_userData = null;
 		m_body = null;
 		m_next = null;
 		//m_proxyId = b2BroadPhase.e_nullProxy;
 		m_shape = null;
 		
-		m_density = 0.0;
+		m_massData = new b2MassData();
+		
 		m_friction = 0.0;
 		m_restitution = 0.0;
 	}
 	// We need separation create/destroy functions from the constructor/destructor because
 	// the destructor cannot access the allocator or broad-phase (no destructor arguments allowed by C++).
-	b2internal function Create(broadPhase:IBroadPhase, body:b2Body, xf:b2XForm, def:b2FixtureDef):void
+	b2internal function Create(broadPhase:IBroadPhase, body:b2Body, xf:b2Transform, def:b2FixtureDef):void
 	{
 		m_userData = def.userData;
 		m_friction = def.friction;
-		m_density = def.density;
 		
 		m_body = body;
 		m_next = null;
@@ -235,11 +254,12 @@ public class b2Fixture
 		
 		m_shape = def.shape.Copy();
 		
-		// Create proxy in the broad-phase
-		var aabb:b2AABB = new b2AABB;
-		m_shape.ComputeAABB(aabb, xf);
+		m_shape.ComputeMass(m_massData, def.density);
 		
-		m_proxy = broadPhase.CreateProxy(aabb, this);
+		// Create proxy in the broad-phase
+		m_shape.ComputeAABB(m_aabb, xf);
+		
+		m_proxy = broadPhase.CreateProxy(m_aabb, this);
 	}
 	
 	b2internal function Destroy(broadPhase:IBroadPhase):void
@@ -252,7 +272,7 @@ public class b2Fixture
 		m_shape = null;
 	}
 	
-	b2internal function Synchronize(broadPhase:IBroadPhase, xf1:b2XForm, xf2:b2XForm):void
+	b2internal function Synchronize(broadPhase:IBroadPhase, transform1:b2Transform, transform2:b2Transform):void
 	{
 		if (!m_proxy)
 			return;
@@ -260,18 +280,20 @@ public class b2Fixture
 		// Compute an AABB that ocvers the swept shape (may miss some rotation effect)
 		var aabb1:b2AABB = new b2AABB();
 		var aabb2:b2AABB = new b2AABB();
-		m_shape.ComputeAABB(aabb1, xf1);
-		m_shape.ComputeAABB(aabb2, xf2);
+		m_shape.ComputeAABB(aabb1, transform1);
+		m_shape.ComputeAABB(aabb2, transform2);
 		
-		var aabb:b2AABB = b2AABB.Combine(aabb1, aabb2);
-		broadPhase.MoveProxy(m_proxy, aabb);
+		m_aabb.Combine(aabb1, aabb2);
+		var displacement:b2Vec2 = b2Math.SubtractVV(transform2.position, transform1.position);
+		broadPhase.MoveProxy(m_proxy, m_aabb, displacement);
 	}
 	
+	b2internal var m_aabb:b2AABB;
+	b2internal var m_massData:b2MassData;
 	b2internal var m_next:b2Fixture;
 	b2internal var m_body:b2Body;
 	b2internal var m_shape:b2Shape;
 	
-	b2internal var m_density:Number;
 	b2internal var m_friction:Number;
 	b2internal var m_restitution:Number;
 	

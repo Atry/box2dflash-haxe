@@ -1,5 +1,5 @@
-﻿/*
-* Copyright (c) 2009 Erin Catto http://www.gphysics.com
+/*
+* Copyright (c) 2009 Adam Newgas http://www.boristhebrave.com
 *
 * This software is provided 'as-is', without any express or implied
 * warranty.  In no event will the authors be held liable for any damages
@@ -16,32 +16,35 @@
 * 3. This notice may not be removed or altered from any source distribution.
 */
 
-package Box2D.Collision 
-{
-	import Box2D.Common.Math.b2Vec2;
-	
-	public class b2RayCastInput 
+package Benchmarks{
+import Box2D.Common.*;
+import Box2D.Dynamics.*;
+import Box2D.Collision.*;
+import Box2D.Collision.Shapes.*;
+import Box2D.Dynamics.Joints.*;
+import Box2D.Dynamics.Contacts.*;
+import Box2D.Common.Math.*;
+
+	public class NullBenchmark implements IBenchmark
 	{
-		function b2RayCastInput(p1:b2Vec2 = null, p2:b2Vec2 = null, maxFraction:Number = 1)
+		public function Name():String
 		{
-			if (p1)
-				this.p1.SetV(p1);
-			if (p2)
-				this.p2.SetV(p2);
-			this.maxFraction = maxFraction;
+			return "Null";
 		}
-		/**
-		 * The start point of the ray
-		 */
-		public var p1:b2Vec2 = new b2Vec2();
-		/**
-		 * The end point of the ray
-		 */
-		public var p2:b2Vec2 = new b2Vec2();
-		/**
-		 * Truncate the ray to reach up to this fraction from p1 to p2
-		 */
-		public var maxFraction:Number;
+		
+		public function Details():XML
+		{
+			return 	<benchmarkParameters>
+					<version>$Rev$</version>
+				</benchmarkParameters>;	
+		}
+		
+		public function Init(world:b2World):void
+		{
+		}
+		
+		public function Update():void
+		{
+		}
 	}
-	
 }

@@ -60,10 +60,15 @@ public class b2PolygonShape extends b2Shape
 		}
 	}
 	
-	/// Copy vertices. This assumes the vertices define a convex polygon.
-	/// It is assumed that the exterior is the the right of each edge.
-	public function SetAsArray(vertices:Array, vertexCount:Number):void
+	/**
+	 * Copy vertices. This assumes the vertices define a convex polygon.
+	 * It is assumed that the exterior is the the right of each edge.
+	 */
+	public function SetAsArray(vertices:Array, vertexCount:Number = 0):void
 	{
+		if (vertexCount == 0)
+			vertexCount = vertices.length;
+			
 		b2Settings.b2Assert(2 <= vertexCount && vertexCount <= b2Settings.b2_maxPolygonVertices);
 		m_vertexCount = vertexCount;
 		
@@ -115,6 +120,13 @@ public class b2PolygonShape extends b2Shape
 		m_centroid = ComputeCentroid(m_vertices, m_vertexCount);
 	}
 	
+	public static function AsArray(vertices:Array, vertexCount:Number):b2PolygonShape
+	{
+		var polygonShape:b2PolygonShape = new b2PolygonShape();
+		polygonShape.SetAsArray(vertices, vertexCount);
+		return polygonShape;
+	}
+	
 	/**
 	* Build vertices to represent an axis-aligned box.
 	* @param hx the half-width.
@@ -132,6 +144,13 @@ public class b2PolygonShape extends b2Shape
 		m_normals[2].Set(0.0, 1.0);
 		m_normals[3].Set(-1.0, 0.0);
 		m_centroid.SetZero();
+	}
+	
+	public static function AsBox(hx:Number, hy:Number):b2PolygonShape
+	{
+		var polygonShape:b2PolygonShape = new b2PolygonShape();
+		polygonShape.SetAsBox(hx, hy);
+		return polygonShape;
 	}
 	
 	/**
@@ -155,7 +174,7 @@ public class b2PolygonShape extends b2Shape
 		m_normals[3].Set(-1.0, 0.0);
 		m_centroid = center;
 
-		var xf:b2XForm = new b2XForm();
+		var xf:b2Transform = new b2Transform();
 		xf.position = center;
 		xf.R.Set(angle);
 
@@ -166,7 +185,17 @@ public class b2PolygonShape extends b2Shape
 			m_normals[i] = b2Math.b2MulMV(xf.R, m_normals[i]);
 		}
 	}
-	/// Set this as a single edge.
+	
+	public static function AsOrientedBox(hx:Number, hy:Number, center:b2Vec2 = null, angle:Number = 0.0):b2PolygonShape
+	{
+		var polygonShape:b2PolygonShape = new b2PolygonShape();
+		polygonShape.SetAsOrientedBox(hx, hy, center, angle);
+		return polygonShape;
+	}
+	
+	/**
+	 * Set this as a single edge.
+	 */
 	public function SetAsEdge(v1:b2Vec2, v2:b2Vec2):void
 	{
 		m_vertexCount = 2;
@@ -180,9 +209,20 @@ public class b2PolygonShape extends b2Shape
 	}
 	
 	/**
+	 * Set this as a single edge.
+	 */
+	static public function AsEdge(v1:b2Vec2, v2:b2Vec2):b2PolygonShape
+	{
+		var polygonShape:b2PolygonShape = new b2PolygonShape();
+		polygonShape.SetAsEdge(v1, v2);
+		return polygonShape;
+	}
+	
+	
+	/**
 	* @inheritDoc
 	*/
-	public override function TestPoint(xf:b2XForm, p:b2Vec2) : Boolean{
+	public override function TestPoint(xf:b2Transform, p:b2Vec2) : Boolean{
 		var tVec:b2Vec2;
 		
 		//b2Vec2 pLocal = b2MulT(xf.R, p - xf.position);
@@ -210,32 +250,28 @@ public class b2PolygonShape extends b2Shape
 	}
 
 	/**
-	* @inheritDoc
-	*/
-	public override function TestSegment( xf:b2XForm,
-		lambda:Array, // float ptr
-		normal:b2Vec2, // ptr
-		segment:b2Segment,
-		maxLambda:Number) : int
+	 * @inheritDoc
+	 */
+	public override function RayCast(output:b2RayCastOutput, input:b2RayCastInput, transform:b2Transform):void
 	{
 		var lower:Number = 0.0;
-		var upper:Number = maxLambda;
+		var upper:Number = input.maxFraction;
 		
 		var tX:Number;
 		var tY:Number;
 		var tMat:b2Mat22;
 		var tVec:b2Vec2;
 		
-		//b2Vec2 p1 = b2MulT(xf.R, segment.p1 - xf.position);
-		tX = segment.p1.x - xf.position.x;
-		tY = segment.p1.y - xf.position.y;
-		tMat = xf.R;
+		//b2Vec2 p1 = b2MulT(transform.R, segment.p1 - transform.position);
+		tX = input.p1.x - transform.position.x;
+		tY = input.p1.y - transform.position.y;
+		tMat = transform.R;
 		var p1X:Number = (tX * tMat.col1.x + tY * tMat.col1.y);
 		var p1Y:Number = (tX * tMat.col2.x + tY * tMat.col2.y);
-		//b2Vec2 p2 = b2MulT(xf.R, segment.p2 - xf.position);
-		tX = segment.p2.x - xf.position.x;
-		tY = segment.p2.y - xf.position.y;
-		tMat = xf.R;
+		//b2Vec2 p2 = b2MulT(transform.R, segment.p2 - transform.position);
+		tX = input.p2.x - transform.position.x;
+		tY = input.p2.y - transform.position.y;
+		tMat = transform.R;
 		var p2X:Number = (tX * tMat.col1.x + tY * tMat.col1.y);
 		var p2Y:Number = (tX * tMat.col2.x + tY * tMat.col2.y);
 		//b2Vec2 d = p2 - p1;
@@ -262,7 +298,8 @@ public class b2PolygonShape extends b2Shape
 			{
 				if (numerator < 0)
 				{
-					return e_missCollide;
+					output.hit = e_missCollide;
+					return;
 				}
 			}
 			else
@@ -288,33 +325,35 @@ public class b2PolygonShape extends b2Shape
 			
 			if (upper < lower)
 			{
-				return e_missCollide;
+				output.hit = e_missCollide;
+				return;
 			}
 		}
 		
-		//b2Settings.b2Assert(0.0 <= lower && lower <= maxLambda);
+		//b2Settings.b2Assert(0.0 <= lower && lower <= input.maxLambda);
 		
 		if (index >= 0)
 		{
-			//*lambda = lower;
-			lambda[0] = lower;
-			//*normal = b2Mul(xf.R, m_normals[index]);
-			tMat = xf.R;
+			output.fraction = lower;
+			//output.normal = b2Mul(transform.R, m_normals[index]);
+			tMat = transform.R;
 			tVec = m_normals[index];
-			normal.x = (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-			normal.y = (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-			return e_hitCollide;
+			output.normal.x = (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+			output.normal.y = (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+			output.hit = e_hitCollide;
+			return;
 		}
 		
-		lambda[0] = 0;
-		return e_startsInsideCollide;
+		output.fraction = 0;
+		output.hit = e_startsInsideCollide;
+		return;
 	}
 
 
 	/**
 	* @inheritDoc
 	*/
-	public override function ComputeAABB(aabb:b2AABB, xf:b2XForm) : void
+	public override function ComputeAABB(aabb:b2AABB, xf:b2Transform) : void
 	{
 		var lower:b2Vec2 = b2Math.b2MulX(xf, m_vertices[0]);
 		var upper:b2Vec2 = lower;
@@ -361,7 +400,17 @@ public class b2PolygonShape extends b2Shape
 		//
 		// The rest of the derivation is handled by computer algebra.
 		
-		//b2Settings.b2Assert(m_vertexCount >= 3);
+		//b2Settings.b2Assert(m_vertexCount >= 2);
+		
+		// A line segment has zero mass.
+		if (m_vertexCount == 2)
+		{
+			massData.center.x = 0.5 * (m_vertices[0].x + m_vertices[1].x);
+			massData.center.y = 0.5 * (m_vertices[0].y + m_vertices[1].y);
+			massData.mass = 0.0;
+			massData.I = 0.0;
+			return;
+		}
 		
 		//b2Vec2 center; center.Set(0.0f, 0.0f);
 		var centerX:Number = 0.0;
@@ -453,7 +502,7 @@ public class b2PolygonShape extends b2Shape
 	public override function ComputeSubmergedArea(
 			normal:b2Vec2,
 			offset:Number,
-			xf:b2XForm,
+			xf:b2Transform,
 			c:b2Vec2):Number
 	{
 		// Transform plane into shape co-ordinates
@@ -584,7 +633,9 @@ public class b2PolygonShape extends b2Shape
 		return m_normals;
 	}
 	
-	/// Get the supporting vertex index in the given direction.
+	/**
+	 * Get the supporting vertex index in the given direction.
+	 */
 	public function GetSupport(d:b2Vec2):int
 	{
 		var bestIndex:int = 0;

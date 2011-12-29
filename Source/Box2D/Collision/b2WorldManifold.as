@@ -24,7 +24,9 @@ import Box2D.Common.*;
 import Box2D.Common.b2internal;
 use namespace b2internal;
 
-/// This is used to compute the current state of a contact manifold.
+/**
+ * This is used to compute the current state of a contact manifold.
+ */
 public class b2WorldManifold 
 {
 	public function b2WorldManifold()
@@ -35,13 +37,15 @@ public class b2WorldManifold
 			m_points[i] = new b2Vec2();
 		}
 	}
-	/// Evaluate the manifold with supplied transforms. This assumes
-	/// modest motion from the original state. This does not change the
-	/// point count, impulses, etc. The radii must come from the shapes
-	/// that generated the manifold.
+	/**
+	 * Evaluate the manifold with supplied transforms. This assumes
+	 * modest motion from the original state. This does not change the
+	 * point count, impulses, etc. The radii must come from the shapes
+	 * that generated the manifold.
+	 */
 	public function Initialize(manifold:b2Manifold,
-					xfA:b2XForm, radiusA:Number,
-					xfB:b2XForm, radiusB:Number):void
+					xfA:b2Transform, radiusA:Number,
+					xfB:b2Transform, radiusB:Number):void
 	{
 		if (manifold.m_pointCount == 0)
 		{
@@ -118,9 +122,13 @@ public class b2WorldManifold
 		}
 	}
 
-	/// world vector pointing from A to B
+	/**
+	 * world vector pointing from A to B
+	 */
 	public var m_normal:b2Vec2 = new b2Vec2();						
-	/// world contact point (point of intersection)
+	/**
+	 * world contact point (point of intersection)
+	 */
 	public var m_points:Array/*b2Vec2*/;
 	
 }

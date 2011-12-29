@@ -2,13 +2,17 @@
 {
 import Box2D.Common.Math.*;
 	
-/// The broad-phase is used for computing pairs and performing volume queries and ray casts.
-/// This broad-phase does not persist pairs. Instead, this reports potentially new pairs.
-/// It is up to the client to consume the new pairs and to track subsequent overlap.
+/**
+ * The broad-phase is used for computing pairs and performing volume queries and ray casts.
+ * This broad-phase does not persist pairs. Instead, this reports potentially new pairs.
+ * It is up to the client to consume the new pairs and to track subsequent overlap.
+ */
 public class b2DynamicTreeBroadPhase implements IBroadPhase
 {
-	/// Create a proxy with an initial AABB. Pairs are not reported until
-	/// UpdatePairs is called.
+	/**
+	 * Create a proxy with an initial AABB. Pairs are not reported until
+	 * UpdatePairs is called.
+	 */
 	public function CreateProxy(aabb:b2AABB, userData:*):*
 	{
 		var proxy:b2DynamicTreeNode = m_tree.CreateProxy(aabb, userData);
@@ -17,7 +21,9 @@ public class b2DynamicTreeBroadPhase implements IBroadPhase
 		return proxy;
 	}
 	
-	/// Destroy a proxy. It is up to the client to remove any pairs.
+	/**
+	 * Destroy a proxy. It is up to the client to remove any pairs.
+	 */
 	public function DestroyProxy(proxy:*):void
 	{
 		UnBufferMove(proxy);
@@ -25,11 +31,13 @@ public class b2DynamicTreeBroadPhase implements IBroadPhase
 		m_tree.DestroyProxy(proxy);
 	}
 	
-	/// Call MoveProxy as many times as you like, then when you are done
-	/// call UpdatePairs to finalized the proxy pairs (for your time step).
-	public function MoveProxy(proxy:*, aabb:b2AABB):void
+	/**
+	 * Call MoveProxy as many times as you like, then when you are done
+	 * call UpdatePairs to finalized the proxy pairs (for your time step).
+	 */
+	public function MoveProxy(proxy:*, aabb:b2AABB, displacement:b2Vec2):void
 	{
-		var buffer:Boolean = m_tree.MoveProxy(proxy, aabb);
+		var buffer:Boolean = m_tree.MoveProxy(proxy, aabb, displacement);
 		if (buffer)
 		{
 			BufferMove(proxy);
@@ -43,25 +51,33 @@ public class b2DynamicTreeBroadPhase implements IBroadPhase
 		return aabbA.TestOverlap(aabbB);
 	}
 	
-	/// Get user data from a proxy. Returns null if the proxy is invalid.
+	/**
+	 * Get user data from a proxy. Returns null if the proxy is invalid.
+	 */
 	public function GetUserData(proxy:*):*
 	{
 		return m_tree.GetUserData(proxy);
 	}
 	
-	/// Get the AABB for a proxy.
-	public function GetAABB(proxy:*):b2AABB
+	/**
+	 * Get the AABB for a proxy.
+	 */
+	public function GetFatAABB(proxy:*):b2AABB
 	{
 		return m_tree.GetFatAABB(proxy);
 	}
 	
-	/// Get the number of proxies.
+	/**
+	 * Get the number of proxies.
+	 */
 	public function GetProxyCount():int
 	{
 		return m_proxyCount;
 	}
 	
-	/// Update the pairs. This results in pair callbacks. This can only add pairs.
+	/**
+	 * Update the pairs. This results in pair callbacks. This can only add pairs.
+	 */
 	public function UpdatePairs(callback:Function):void
 	{
 		m_pairCount = 0;
@@ -122,17 +138,20 @@ public class b2DynamicTreeBroadPhase implements IBroadPhase
 		}
 	}
 	
-	/// Query an AABB for overlapping proxies. The callback class
-	/// is called with the userData foreach proxy that overlaps 
-	/// the supplied AABB, and return a Boolean indicating if 
-	/// the broaphase should proceed to the next match.
+	/**
+	 * @inheritDoc
+	 */
 	public function Query(callback:Function, aabb:b2AABB):void
 	{
-		function QueryWrapper(proxy:b2DynamicTreeNode):Boolean
-		{
-			return callback(m_tree.GetUserData(proxy));
-		}
-		m_tree.Query(QueryWrapper, aabb);
+		m_tree.Query(callback, aabb);
+	}
+	
+	/**
+	 * @inheritDoc
+	 */
+	public function RayCast(callback:Function, input:b2RayCastInput):void
+	{
+		m_tree.RayCast(callback, input);
 	}
 	
 	
