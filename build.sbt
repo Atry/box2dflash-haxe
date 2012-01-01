@@ -30,14 +30,14 @@ sourceGenerators in Compile in compc <+=
     if (input.getName.endsWith(".as")) {
       import java.nio.charset.Charset
       val inputContent = IO.read(input, Charset.forName("UTF-8"))
-      val reg = """\bimport\s+((?:[A-Z]\w+\.)*+)|\b(b2)|\bpackage\s+([\w\.]++)\s*\{""".r
+      val reg = """\bimport\s+((?:[A-Z]\w+\.)*+)|\bb2([A-Za-z])|\bpackage\s+([\w\.]++)\s*\{""".r
       val packageReg = """\b[A-Z]""".r
       IO.write(output, reg.replaceAllIn(inputContent, { m =>
         m.subgroups match {
           case List(g1, null, null) =>
             "import " + packageReg.replaceAllIn(g1, { _.group(0).toLowerCase })
-          case List(null, _, null) =>
-            "B2"
+          case List(null, g2, null) =>
+            "B2" + g2
           case List(null, null, g3) =>
             "package " +
             packageReg.replaceAllIn(g3, { _.group(0).toLowerCase }) +
