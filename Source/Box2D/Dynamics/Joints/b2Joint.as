@@ -174,6 +174,13 @@ public class b2Joint
 			}
 			break;
 			
+		case e_ropeJoint:
+			{
+				//void* mem = allocator->Allocate(sizeof(b2FrictionJoint));
+				joint = new b2RopeJoint(def as b2RopeJointDef);
+			}
+			break;
+			
 		default:
 			//b2Settings.b2Assert(false);
 			break;
@@ -220,6 +227,10 @@ public class b2Joint
 			
 		case e_frictionJoint:
 			allocator->Free(joint, sizeof(b2FrictionJoint));
+			break;
+		
+		case e_ropeJoint:
+			allocator->Free(joint, sizeof(b2RopeJoint));
 			break;
 		
 		default:
@@ -283,6 +294,7 @@ public class b2Joint
 	static b2internal const e_lineJoint:int = 7;
 	static b2internal const e_weldJoint:int = 8;
 	static b2internal const e_frictionJoint:int = 9;
+	static b2internal const e_ropeJoint:int = 10;
 
 	// enum b2LimitState
 	static b2internal const e_inactiveLimit:int = 0;
