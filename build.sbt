@@ -80,4 +80,4 @@ name := "box2dflash-haxe"
 
 organization := "org.box2dflash"
 
-version := "2.1a"
+version := "2.1-SNAPSHOT"
